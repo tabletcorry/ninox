@@ -1,0 +1,52 @@
+[project]
+name = "ninox"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.1.8",
+    "openai>=1.78.0",
+    "pillow>=11.2.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+ninox = "ninox.main:cli"
+
+
+[tool.ruff]
+fix = true
+unsafe-fixes = false
+
+[tool.ruff.lint]
+preview = true
+isort.split-on-trailing-comma = false
+select = ["ALL"]
+
+ignore = [
+    "D",
+    "DOC",
+    "CPY001",
+    "D203", "D213", "COM812", # Incompatible opinions
+    "T201",
+    "TRY003", "EM102",
+    "T203",
+    "EM101",
+    "FBT001", "FBT002",
+]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+preview = true
+
+[tool.mypy]
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict = true
+ignore_missing_imports = false
