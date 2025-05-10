@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import json
 import mimetypes
 import os
 import tomllib
@@ -118,6 +119,12 @@ def get_image_description(
     return response.output_text.strip()
 
 
+def write_sidecar(image_path: Path, description: str) -> None:
+    sidecar_data = {"ImageDescription": description}
+    with image_path.with_suffix(f"{image_path.suffix}.meta").open("w") as f:
+        json.dump(sidecar_data, f)
+
+
 def embed_exif_description(image_path: Path, description: str) -> None:
     """
     Write a description string into an image's EXIF ImageDescription using Pillow.
@@ -155,11 +162,14 @@ def process_directory(client: OpenAI, directory: Path, context: str) -> None:
         for fname in files:
             if Path(fname).suffix.lower() in supported_exts:
                 img_path = Path(root) / fname
+                if img_path.with_suffix(f"{img_path.suffix}.meta").exists():
+                    print(f"Skipping {img_path}, metadata already exists…")
+                    continue
                 print(f"Processing {img_path}…")
                 try:
                     desc = get_image_description(client, img_path, context)
                     print(f"  ✅ Description: {desc}")
-                    embed_exif_description(img_path, desc)
+                    write_sidecar(img_path, desc)
                 except Exception as e:
                     print(f"  ❌ Error on {img_path}: {e}")
                     raise
@@ -167,17 +177,19 @@ def process_directory(client: OpenAI, directory: Path, context: str) -> None:
 
 @click.command()
 @click.argument("directory", type=Path)
-def describe_images(directory: Path) -> None:
+@click.option("--context", "-c", help="Context for this batch of images")
+def describe_images(directory: Path, context: str | None = None) -> None:
     if not directory.is_dir():
         print(f"{directory} is not a directory")
         return
 
-    context = click.prompt(
-        "Enter context for this batch of images:", default=""
-    ).strip()
-    if not context:
-        print("No context provided; exiting.")
-        return
+    if context is None:
+        context = click.prompt(
+            "Enter context for this batch of images:", default=""
+        ).strip()
+        if not context:
+            print("No context provided; exiting.")
+            return
 
     # Load configuration and initialize OpenAI client
     config = load_config("~/.config/ninox/config.toml")
