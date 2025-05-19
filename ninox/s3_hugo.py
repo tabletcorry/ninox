@@ -42,7 +42,15 @@ def ensure_section(path: Path, title: str) -> None:
     path.mkdir(parents=True, exist_ok=True)
     index = path / "_index.md"
     if not index.exists():
-        index.write_text(f"---\ntitle: {title}\nhiddenInHomeList: true\n---\n")
+        index.write_text(
+            "---\n"
+            f"title: {title}\n"
+            "ShowReadingTime: false\n"
+            "hideMeta: true\n"
+            "hideSummary: true\n"
+            "hiddenInHomeList: true\n"
+            "---\n"
+        )
 
 
 def group_objects(bucket: str, prefix: str) -> dict[tuple[str, dt.date], list[str]]:
@@ -70,9 +78,18 @@ def write_year_page(
     """Write an ``index.md`` listing all menus for ``year`` grouped by month."""
     ship_slug = slug(SHIPS[ship_code])
     year_dir = base / "hal_menus" / ship_slug / f"{year}"
-    year_dir.mkdir(parents=True, exist_ok=True)
+    ensure_section(year_dir, str(year))
 
-    lines = ["---", f"title: {year}", "hiddenInHomeList: true", "---", ""]
+    lines = [
+        "---",
+        f"title: {year}",
+        "ShowReadingTime: false",
+        "hideMeta: true",
+        "hideSummary: true",
+        "hiddenInHomeList: true",
+        "---",
+        "",
+    ]
 
     month_map: dict[int, dict[dt.date, list[str]]] = defaultdict(dict)
     for date, keys in days.items():
