@@ -38,7 +38,7 @@ def ensure_section(path: Path, title: str) -> None:
     path.mkdir(parents=True, exist_ok=True)
     index = path / "_index.md"
     if not index.exists():
-        index.write_text(f"---\ntitle: {title}\n---\n")
+        index.write_text(f"---\ntitle: {title}\nhiddenInHomeList: true\n---\n")
 
 
 def group_objects(bucket: str, prefix: str) -> dict[tuple[str, dt.date], list[str]]:
@@ -69,7 +69,7 @@ def write_day_page(
         base / "hal_menus" / ship_slug / f"{date:%Y}" / f"{date:%m}" / f"{date:%d}"
     )
     day_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["---", f"title: {date:%Y-%m-%d}", "---", ""]
+    lines = ["---", f"title: {date:%Y-%m-%d}", "hiddenInHomeList: true", "---", ""]
     for key in keys:
         url = f"{cdn_host}/{key}"
         name = Path(key).name

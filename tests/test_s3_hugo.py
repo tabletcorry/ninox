@@ -15,18 +15,22 @@ def test_slug() -> None:
 def test_ensure_section(tmp_path: Path) -> None:
     section = tmp_path / "foo"
     s3_hugo.ensure_section(section, "Foo")
-    assert (section / "_index.md").read_text() == "---\ntitle: Foo\n---\n"
+    assert (
+        section / "_index.md"
+    ).read_text() == "---\ntitle: Foo\nhiddenInHomeList: true\n---\n"
     # second call should not fail or change content
     s3_hugo.ensure_section(section, "Foo")
-    assert (section / "_index.md").read_text() == "---\ntitle: Foo\n---\n"
+    assert (
+        section / "_index.md"
+    ).read_text() == "---\ntitle: Foo\nhiddenInHomeList: true\n---\n"
 
 
 def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakePaginator:
         @staticmethod
-        def paginate(bucket: str, prefix: str) -> Iterable[dict[str, list[dict]]]:
-            assert bucket == "my-bucket"
-            assert prefix == "content/"
+        def paginate(**kwargs: object) -> Iterable[dict[str, list[dict]]]:
+            assert kwargs["Bucket"] == "my-bucket"
+            assert kwargs["Prefix"] == "content/"
             yield {
                 "Contents": [
                     {
@@ -68,17 +72,10 @@ def test_write_day_page(tmp_path: Path) -> None:
     date = dt.date(2025, 3, 17)
     key = "content/ko/menu/abc/file.pdf"
     s3_hugo.write_day_page(tmp_path, "ko", date, [key], "https://cdn")
-    index = (
-        tmp_path
-        / "hal_menus"
-        / "koningsdam"
-        / "2025"
-        / "03"
-        / "17"
-        / "index.md"
-    )
+    index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "03" / "17" / "index.md"
     content = index.read_text()
     assert "title: 2025-03-17" in content
+    assert "hiddenInHomeList: true" in content
     assert "- [file.pdf](https://cdn/content/ko/menu/abc/file.pdf)" in content
 
 
@@ -94,13 +91,22 @@ def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     s3_hugo.create_tree("my-bucket", "content/", tmp_path, "https://cdn")
 
     root = tmp_path / "hal_menus"
-    assert (root / "_index.md").exists()
+    root_index = root / "_index.md"
+    assert root_index.exists()
+    assert "hiddenInHomeList: true" in root_index.read_text()
     ship_dir = root / "koningsdam"
-    assert (ship_dir / "_index.md").exists()
+    ship_index = ship_dir / "_index.md"
+    assert ship_index.exists()
+    assert "hiddenInHomeList: true" in ship_index.read_text()
     year_dir = ship_dir / "2025"
-    assert (year_dir / "_index.md").exists()
+    year_index = year_dir / "_index.md"
+    assert year_index.exists()
+    assert "hiddenInHomeList: true" in year_index.read_text()
     month_dir = year_dir / "03"
-    assert (month_dir / "_index.md").exists()
+    month_index = month_dir / "_index.md"
+    assert month_index.exists()
+    assert "hiddenInHomeList: true" in month_index.read_text()
     day_index = month_dir / "17" / "index.md"
     assert day_index.exists()
+    assert "hiddenInHomeList: true" in day_index.read_text()
     assert "file.pdf" in day_index.read_text()
