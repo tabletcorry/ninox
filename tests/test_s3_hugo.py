@@ -22,14 +22,26 @@ def test_slug() -> None:
 def test_ensure_section(tmp_path: Path) -> None:
     section = tmp_path / "foo"
     s3_hugo.ensure_section(section, "Foo")
-    assert (
-        section / "_index.md"
-    ).read_text() == "---\ntitle: Foo\nhiddenInHomeList: true\n---\n"
+    assert (section / "_index.md").read_text() == (
+        "---\n"
+        "title: Foo\n"
+        "ShowReadingTime: false\n"
+        "hideMeta: true\n"
+        "hideSummary: true\n"
+        "hiddenInHomeList: true\n"
+        "---\n"
+    )
     # second call should not fail or change content
     s3_hugo.ensure_section(section, "Foo")
-    assert (
-        section / "_index.md"
-    ).read_text() == "---\ntitle: Foo\nhiddenInHomeList: true\n---\n"
+    assert (section / "_index.md").read_text() == (
+        "---\n"
+        "title: Foo\n"
+        "ShowReadingTime: false\n"
+        "hideMeta: true\n"
+        "hideSummary: true\n"
+        "hiddenInHomeList: true\n"
+        "---\n"
+    )
 
 
 def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -87,9 +99,12 @@ def test_write_year_page(tmp_path: Path) -> None:
     index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "index.md"
     content = index.read_text()
     assert "title: 2025" in content
+    assert "ShowReadingTime: false" in content
+    assert "hideMeta: true" in content
+    assert "hideSummary: true" in content
     assert "hiddenInHomeList: true" in content
-    assert "<details><summary>March</summary>" in content
-    assert "<details><summary>April</summary>" in content
+    assert '{{< details title="March" >}}' in content
+    assert '{{< details title="April" >}}' in content
     assert f"- [file.pdf](https://cdn/{key1})" in content
     assert f"- [file2.pdf](https://cdn/{key2})" in content
 
@@ -109,17 +124,28 @@ def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = tmp_path / "hal_menus"
     root_index = root / "_index.md"
     assert root_index.exists()
-    assert "hiddenInHomeList: true" in root_index.read_text()
+    root_content = root_index.read_text()
+    assert "hideMeta: true" in root_content
+    assert "hideSummary: true" in root_content
+    assert "ShowReadingTime: false" in root_content
+    assert "hiddenInHomeList: true" in root_content
     ship_dir = root / "koningsdam"
     ship_index = ship_dir / "_index.md"
     assert ship_index.exists()
-    assert "hiddenInHomeList: true" in ship_index.read_text()
+    ship_content = ship_index.read_text()
+    assert "hideMeta: true" in ship_content
+    assert "hideSummary: true" in ship_content
+    assert "ShowReadingTime: false" in ship_content
     year_dir = ship_dir / "2025"
     year_index = year_dir / "_index.md"
     assert year_index.exists()
-    assert "hiddenInHomeList: true" in year_index.read_text()
+    year_content = year_index.read_text()
+    assert "hideMeta: true" in year_content
+    assert "hideSummary: true" in year_content
+    assert "ShowReadingTime: false" in year_content
+    assert "hiddenInHomeList: true" in year_content
     year_page = year_dir / "index.md"
     assert year_page.exists()
     content = year_page.read_text()
-    assert "<details><summary>March</summary>" in content
+    assert '{{< details title="March" >}}' in content
     assert "file.pdf" in content
