@@ -9,6 +9,7 @@ dependencies = [
     "click>=8.1.8",
     "openai>=1.78.0",
     "pillow>=11.2.1",
+    "boto3>=1.34.89",
 ]
 
 [build-system]
