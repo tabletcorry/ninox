@@ -96,7 +96,8 @@ def test_write_year_page(tmp_path: Path) -> None:
     s3_hugo.write_year_page(
         tmp_path, "ko", 2025, {d1: [key1], d2: [key2]}, "https://cdn"
     )
-    index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "index.md"
+    year_dir = tmp_path / "hal_menus" / "koningsdam" / "2025"
+    index = year_dir / "index.md"
     content = index.read_text()
     assert "title: 2025" in content
     assert "ShowReadingTime: false" in content
@@ -107,6 +108,7 @@ def test_write_year_page(tmp_path: Path) -> None:
     assert '{{< details title="April" >}}' in content
     assert f"- [file.pdf](https://cdn/{key1})" in content
     assert f"- [file2.pdf](https://cdn/{key2})" in content
+    assert not (year_dir / "_index.md").exists()
 
 
 def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -137,13 +139,7 @@ def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert "hideSummary: true" in ship_content
     assert "ShowReadingTime: false" in ship_content
     year_dir = ship_dir / "2025"
-    year_index = year_dir / "_index.md"
-    assert year_index.exists()
-    year_content = year_index.read_text()
-    assert "hideMeta: true" in year_content
-    assert "hideSummary: true" in year_content
-    assert "ShowReadingTime: false" in year_content
-    assert "hiddenInHomeList: true" in year_content
+    assert not (year_dir / "_index.md").exists()
     year_page = year_dir / "index.md"
     assert year_page.exists()
     content = year_page.read_text()
