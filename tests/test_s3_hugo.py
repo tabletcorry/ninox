@@ -75,16 +75,23 @@ def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
     }
 
 
-def test_write_day_page(tmp_path: Path) -> None:
-    date = dt.date(2025, 3, 17)
+def test_write_year_page(tmp_path: Path) -> None:
     prefix = "a" * 32
-    key = f"content/ko/menu/abc/{prefix}-file.pdf"
-    s3_hugo.write_day_page(tmp_path, "ko", date, [key], "https://cdn")
-    index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "03" / "17" / "index.md"
+    d1 = dt.date(2025, 3, 17)
+    d2 = dt.date(2025, 4, 1)
+    key1 = f"content/ko/menu/abc/{prefix}-file.pdf"
+    key2 = f"content/ko/menu/def/{prefix}-file2.pdf"
+    s3_hugo.write_year_page(
+        tmp_path, "ko", 2025, {d1: [key1], d2: [key2]}, "https://cdn"
+    )
+    index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "index.md"
     content = index.read_text()
-    assert "title: 2025-03-17" in content
+    assert "title: 2025" in content
     assert "hiddenInHomeList: true" in content
-    assert f"- [file.pdf](https://cdn/{key})" in content
+    assert "<details><summary>March</summary>" in content
+    assert "<details><summary>April</summary>" in content
+    assert f"- [file.pdf](https://cdn/{key1})" in content
+    assert f"- [file2.pdf](https://cdn/{key2})" in content
 
 
 def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -111,11 +118,8 @@ def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     year_index = year_dir / "_index.md"
     assert year_index.exists()
     assert "hiddenInHomeList: true" in year_index.read_text()
-    month_dir = year_dir / "03"
-    month_index = month_dir / "_index.md"
-    assert month_index.exists()
-    assert "hiddenInHomeList: true" in month_index.read_text()
-    day_index = month_dir / "17" / "index.md"
-    assert day_index.exists()
-    assert "hiddenInHomeList: true" in day_index.read_text()
-    assert "file.pdf" in day_index.read_text()
+    year_page = year_dir / "index.md"
+    assert year_page.exists()
+    content = year_page.read_text()
+    assert "<details><summary>March</summary>" in content
+    assert "file.pdf" in content

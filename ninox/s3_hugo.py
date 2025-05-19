@@ -4,13 +4,9 @@ import datetime as dt
 import re
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import boto3
 import click
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 MIN_PARTS = 4
 
@@ -68,21 +64,33 @@ def group_objects(bucket: str, prefix: str) -> dict[tuple[str, dt.date], list[st
     return groups
 
 
-def write_day_page(
-    base: Path, ship_code: str, date: dt.date, keys: Iterable[str], cdn_host: str
+def write_year_page(
+    base: Path, ship_code: str, year: int, days: dict[dt.date, list[str]], cdn_host: str
 ) -> None:
-    """Write an ``index.md`` listing ``keys`` for a single day."""
+    """Write an ``index.md`` listing all menus for ``year`` grouped by month."""
     ship_slug = slug(SHIPS[ship_code])
-    day_dir = (
-        base / "hal_menus" / ship_slug / f"{date:%Y}" / f"{date:%m}" / f"{date:%d}"
-    )
-    day_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["---", f"title: {date:%Y-%m-%d}", "hiddenInHomeList: true", "---", ""]
-    for key in keys:
-        url = f"{cdn_host}/{key}"
-        name = strip_md5_prefix(Path(key).name)
-        lines.append(f"- [{name}]({url})")
-    (day_dir / "index.md").write_text("\n".join(lines))
+    year_dir = base / "hal_menus" / ship_slug / f"{year}"
+    year_dir.mkdir(parents=True, exist_ok=True)
+
+    lines = ["---", f"title: {year}", "hiddenInHomeList: true", "---", ""]
+
+    month_map: dict[int, dict[dt.date, list[str]]] = defaultdict(dict)
+    for date, keys in days.items():
+        month_map[date.month][date] = keys
+
+    for month in sorted(month_map):
+        month_name = dt.date(year, month, 1).strftime("%B")
+        lines.extend((f'{{{{< details title="{month_name}" >}}}}', ""))
+        for date in sorted(month_map[month]):
+            lines.append(f"### {date:%Y-%m-%d}")
+            for key in sorted(month_map[month][date]):
+                url = f"{cdn_host}/{key}"
+                name = strip_md5_prefix(Path(key).name)
+                lines.append(f"- [{name}]({url})")
+            lines.append("")
+        lines.extend(("{{< /details >}}", ""))
+
+    (year_dir / "index.md").write_text("\n".join(lines))
 
 
 def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
@@ -95,14 +103,15 @@ def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
         ship_name = SHIPS[code]
         ship_dir = root / slug(ship_name)
         ensure_section(ship_dir, ship_name)
-        for date in {d for c, d in groups if c == code}:
-            year_dir = ship_dir / f"{date:%Y}"
-            ensure_section(year_dir, str(date.year))
-            month_dir = year_dir / f"{date:%m}"
-            ensure_section(month_dir, date.strftime("%B"))
 
+    year_groups: dict[tuple[str, int], dict[dt.date, list[str]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
     for (code, date), keys in groups.items():
-        write_day_page(output, code, date, sorted(keys), cdn_host)
+        year_groups[code, date.year][date].extend(sorted(keys))
+
+    for (code, year), days in year_groups.items():
+        write_year_page(output, code, year, days, cdn_host)
 
 
 @click.command()
