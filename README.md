@@ -50,3 +50,4 @@ ninox generate-menu-tree --bucket my-bucket --cdn-host https://cdn.example.com
 ```
 
 The command creates `content/hal_menus/...` directories with daily `index.md` files linking to the PDFs via the provided CDN host.
+Any leading 32-character MD5 hashes in the filenames are stripped from the link display names.

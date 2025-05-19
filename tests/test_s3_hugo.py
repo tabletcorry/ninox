@@ -8,6 +8,13 @@ import pytest
 from ninox import s3_hugo
 
 
+def test_strip_md5_prefix() -> None:
+    prefix = "a" * 32
+    assert s3_hugo.strip_md5_prefix(f"{prefix}-file.pdf") == "file.pdf"
+    assert s3_hugo.strip_md5_prefix(f"{prefix}_file.pdf") == "file.pdf"
+    assert s3_hugo.strip_md5_prefix("file.pdf") == "file.pdf"
+
+
 def test_slug() -> None:
     assert s3_hugo.slug("Nieuw Amsterdam") == "nieuw_amsterdam"
 
@@ -28,7 +35,7 @@ def test_ensure_section(tmp_path: Path) -> None:
 def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakePaginator:
         @staticmethod
-        def paginate(**kwargs: object) -> Iterable[dict[str, list[dict]]]:
+        def paginate(**kwargs: object) -> Iterable[dict[str, list[dict[str, object]]]]:
             assert kwargs["Bucket"] == "my-bucket"
             assert kwargs["Prefix"] == "content/"
             yield {
@@ -58,7 +65,7 @@ def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
             assert name == "list_objects_v2"
             return FakePaginator()
 
-    monkeypatch.setattr(s3_hugo.boto3, "client", lambda _service: FakeClient())
+    monkeypatch.setattr(s3_hugo.boto3, "client", lambda _service: FakeClient())  # type: ignore[attr-defined]
 
     groups = s3_hugo.group_objects("my-bucket", "content/")
 
@@ -70,20 +77,22 @@ def test_group_objects(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_write_day_page(tmp_path: Path) -> None:
     date = dt.date(2025, 3, 17)
-    key = "content/ko/menu/abc/file.pdf"
+    prefix = "a" * 32
+    key = f"content/ko/menu/abc/{prefix}-file.pdf"
     s3_hugo.write_day_page(tmp_path, "ko", date, [key], "https://cdn")
     index = tmp_path / "hal_menus" / "koningsdam" / "2025" / "03" / "17" / "index.md"
     content = index.read_text()
     assert "title: 2025-03-17" in content
     assert "hiddenInHomeList: true" in content
-    assert "- [file.pdf](https://cdn/content/ko/menu/abc/file.pdf)" in content
+    assert f"- [file.pdf](https://cdn/{key})" in content
 
 
 def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    prefix = "a" * 32
     groups = {
-        ("ko", dt.date(2025, 3, 17)): ["content/ko/menu/abc/file.pdf"],
-        ("ko", dt.date(2025, 3, 18)): ["content/ko/menu/def/file2.pdf"],
-        ("na", dt.date(2025, 3, 19)): ["content/na/menu/ghi/file3.pdf"],
+        ("ko", dt.date(2025, 3, 17)): [f"content/ko/menu/abc/{prefix}-file.pdf"],
+        ("ko", dt.date(2025, 3, 18)): [f"content/ko/menu/def/{prefix}-file2.pdf"],
+        ("na", dt.date(2025, 3, 19)): [f"content/na/menu/ghi/{prefix}-file3.pdf"],
     }
 
     monkeypatch.setattr(s3_hugo, "group_objects", lambda _bucket, _prefix: groups)
