@@ -1,6 +1,9 @@
 # ninox
 
-Ninox generates alt text for images using OpenAI's Responses API.
+Ninox is intended to be a catch-all tool for various LLM scripts I make.
+
+Currently has the following:
+* `describe-images`: generates alt text for images using OpenAI's Responses API.
 
 ## Requirements
 
@@ -10,7 +13,7 @@ Ninox generates alt text for images using OpenAI's Responses API.
 Install everything in editable mode:
 
 ```bash
-pip install -e .
+uv tool install --editable .
 ```
 
 ## Configuration
@@ -23,12 +26,16 @@ open = "sk-your-openai-token"
 closed = ""
 ```
 
+Open/Closed aren't used yet, but are intended to indicate if data sharing is appropriate. Only open is used so far.
+
 ## Usage
 
-Run `ninox` to annotate images in a directory:
+### describe-images
+
+Annotate images in a directory:
 
 ```bash
-ninox describe-images /path/to/images -c "Short context for the batch"
+ninox describe-images /path/to/images
 ```
 
 The command adds `.meta` sidecar files next to each image containing the generated description.
