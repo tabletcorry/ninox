@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -26,6 +27,13 @@ SHIPS = {
     "we": "Westerdam",
     "zu": "Zuiderdam",
 }
+
+MD5_PREFIX = re.compile(r"^[0-9a-f]{32}[-_]")
+
+
+def strip_md5_prefix(name: str) -> str:
+    """Remove an MD5 prefix from ``name`` if present."""
+    return MD5_PREFIX.sub("", name)
 
 
 def slug(name: str) -> str:
@@ -72,7 +80,7 @@ def write_day_page(
     lines = ["---", f"title: {date:%Y-%m-%d}", "hiddenInHomeList: true", "---", ""]
     for key in keys:
         url = f"{cdn_host}/{key}"
-        name = Path(key).name
+        name = strip_md5_prefix(Path(key).name)
         lines.append(f"- [{name}]({url})")
     (day_dir / "index.md").write_text("\n".join(lines))
 
