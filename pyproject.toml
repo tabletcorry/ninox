@@ -50,3 +50,8 @@ warn_redundant_casts = true
 warn_unused_ignores = true
 strict = true
 ignore_missing_imports = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+]
