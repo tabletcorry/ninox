@@ -103,9 +103,6 @@ def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
         ship_name = SHIPS[code]
         ship_dir = root / slug(ship_name)
         ensure_section(ship_dir, ship_name)
-        for year in {d.year for c, d in groups if c == code}:
-            year_dir = ship_dir / f"{year}"
-            ensure_section(year_dir, str(year))
 
     year_groups: dict[tuple[str, int], dict[dt.date, list[str]]] = defaultdict(
         lambda: defaultdict(list)
