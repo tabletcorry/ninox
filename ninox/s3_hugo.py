@@ -78,7 +78,7 @@ def write_year_page(
     """Write an ``index.md`` listing all menus for ``year`` grouped by month."""
     ship_slug = slug(SHIPS[ship_code])
     year_dir = base / "hal_menus" / ship_slug / f"{year}"
-    ensure_section(year_dir, str(year))
+    year_dir.mkdir(parents=True, exist_ok=True)
 
     lines = [
         "---",
