@@ -4,6 +4,7 @@ Ninox is intended to be a catch-all tool for various LLM scripts I make.
 
 Currently has the following:
 * `describe-images`: generates alt text for images using OpenAI's Responses API.
+* `generate-menu-tree`: mirrors menu PDFs from S3 into a Hugo content tree.
 
 ## Requirements
 
@@ -39,3 +40,13 @@ ninox describe-images /path/to/images
 ```
 
 The command adds `.meta` sidecar files next to each image containing the generated description.
+
+### generate-menu-tree
+
+Mirror menu PDFs from S3 and create a Hugo content structure:
+
+```bash
+ninox generate-menu-tree --bucket my-bucket --cdn-host https://cdn.example.com
+```
+
+The command creates `content/hal_menus/...` directories with daily `index.md` files linking to the PDFs via the provided CDN host.
