@@ -56,5 +56,6 @@ ignore_missing_imports = false
 [dependency-groups]
 dev = [
     "boto3-stubs[essential]>=1.38.18",
+    "mypy>=1.15.0",
     "pytest>=8.3.5",
 ]
