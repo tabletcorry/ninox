@@ -80,7 +80,7 @@ def write_year_page(
 
     for month in sorted(month_map):
         month_name = dt.date(year, month, 1).strftime("%B")
-        lines.extend((f"<details><summary>{month_name}</summary>", ""))
+        lines.extend((f"{{{{< details title="{month_name}" >}}}}", ""))
         for date in sorted(month_map[month]):
             lines.append(f"### {date:%Y-%m-%d}")
             for key in sorted(month_map[month][date]):
@@ -88,7 +88,7 @@ def write_year_page(
                 name = strip_md5_prefix(Path(key).name)
                 lines.append(f"- [{name}]({url})")
             lines.append("")
-        lines.extend(("</details>", ""))
+        lines.extend(("{{< /details >}}", ""))
 
     (year_dir / "index.md").write_text("\n".join(lines))
 
