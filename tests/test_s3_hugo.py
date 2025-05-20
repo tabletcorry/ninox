@@ -53,7 +53,8 @@ def test_ensure_section(tmp_path: Path) -> None:
         "hideMeta: true\n"
         "hideSummary: true\n"
         "hiddenInHomeList: true\n"
-        "description: A ship\n"
+        "description: >-\n"
+        "  A ship\n"
         "---\n"
     )
 
@@ -134,7 +135,7 @@ def test_write_year_page_with_description(tmp_path: Path) -> None:
     )
     year_dir = tmp_path / "hal_menus" / "koningsdam" / "2025"
     content = (year_dir / "index.md").read_text()
-    assert "description: A ship - 2025" in content
+    assert "description: >-\n  A ship from 2025" in content
 
 
 def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -188,15 +189,15 @@ def test_create_tree_with_config(
 
     ship_dir = tmp_path / "hal_menus" / "koningsdam"
     ship_content = (ship_dir / "_index.md").read_text()
-    assert "description: The best" in ship_content
+    assert "description: >-\n  The best" in ship_content
     year_page = ship_dir / "2025" / "index.md"
-    assert "description: The best - 2025" in year_page.read_text()
+    assert "description: >-\n  The best from 2025" in year_page.read_text()
 
 
 def test_generate_menu_tree_autoload_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    config = tmp_path / "config.toml"
+    config = tmp_path / "ninox_config.toml"
     config.write_text("""[ships]\nko = 'Desc'\n""")
     monkeypatch.chdir(tmp_path)
 
