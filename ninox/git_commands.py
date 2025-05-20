@@ -19,7 +19,7 @@ def git() -> None:
 
 @git.command()
 @click.option(
-    "--model", default="gpt-4.1-nano", show_default=True, help="OpenAI model to use"
+    "--model", default="gpt-4.1-mini", show_default=True, help="OpenAI model to use"
 )
 def commit(model: str) -> None:
     """Generate a commit message with an LLM and commit staged changes."""
@@ -43,11 +43,30 @@ def commit(model: str) -> None:
         messages=[
             {
                 "role": "system",
-                "content": "Write a concise git commit message in the imperative mood.",
+                "content": "You are “CommitCraft AI”, an expert on the guidelines from"
+                "A Note about Git Commit Messages” (tbaggery.com, 2008).",
             },
-            {"role": "user", "content": f"Patch:\n{patch}"},
+            {
+                "role": "user",
+                "content": f"""
+Given ONLY the following git patch, create ONE commit message.
+
+──────── PATCH START ────────
+{patch}
+──────── PATCH END ──────────
+
+Format rules:
+1. Subject line ≤ 50 chars, **imperative**, no period.
+2. Exactly one blank line after the subject.
+3. *Body wrapped ≤ 72 chars per line*; explain **what** & **why**, not how.
+4. Mention high-level modules/files that changed, excluding lock files.
+5. Further paragraphs start with a blank line; bulleted lists are OK.
+6. Skip body for lock file updates.
+
+Return only the formatted commit message—no code fences, no extra prose.""",
+            },
         ],
-        max_tokens=50,
+        max_tokens=512,
     )
     message = cast("str", response.choices[0].message.content).strip()
 
