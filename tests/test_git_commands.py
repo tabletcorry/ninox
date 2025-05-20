@@ -1,4 +1,5 @@
 # ruff: noqa: S101
+import io
 from pathlib import Path
 
 import click
@@ -70,8 +71,65 @@ def test_commit_creates_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
     callback = git_commands.commit.callback
     assert callback is not None
-    callback("model")
+    callback("model", stage_all=False, paths=())
 
     repo = Repo(str(tmp_path))
     last = repo[repo.head()]
     assert last.message.decode().strip() == "Update file"
+
+
+def test_commit_only_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = porcelain.init(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    Path("a.txt").write_text("hello", encoding="utf-8")
+    Path("b.txt").write_text("hello", encoding="utf-8")
+    porcelain.add(repo.path, ["a.txt", "b.txt"])  # type: ignore[no-untyped-call]
+    porcelain.commit(repo.path, message=b"init")  # type: ignore[no-untyped-call]
+
+    Path("a.txt").write_text("new", encoding="utf-8")
+    Path("b.txt").write_text("new", encoding="utf-8")
+
+    monkeypatch.setattr(
+        git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Msg")
+    )
+    monkeypatch.setattr(git_commands, "load_config", lambda _p: make_config())
+    monkeypatch.setattr(click, "confirm", lambda *_a, **_k: False)
+    monkeypatch.setattr(click, "edit", lambda msg: msg)
+
+    callback = git_commands.commit.callback
+    assert callback is not None
+    callback("model", stage_all=False, paths=("a.txt",))
+
+    repo = Repo(str(tmp_path))
+    head = repo.head()
+    last = repo[head]
+    prev = repo[last.parents[0]]
+    diff_io = io.BytesIO()
+    porcelain.diff_tree(repo.path, prev.tree, last.tree, outstream=diff_io)
+    patch = diff_io.getvalue()
+    assert b"a.txt" in patch
+    assert b"b.txt" not in patch
+
+
+def test_commit_all_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = porcelain.init(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    Path("a.txt").write_text("hello", encoding="utf-8")
+    porcelain.add(repo.path, "a.txt")  # type: ignore[no-untyped-call]
+    porcelain.commit(repo.path, message=b"init")  # type: ignore[no-untyped-call]
+
+    Path("a.txt").write_text("new", encoding="utf-8")
+
+    monkeypatch.setattr(
+        git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Msg")
+    )
+    monkeypatch.setattr(git_commands, "load_config", lambda _p: make_config())
+    monkeypatch.setattr(click, "confirm", lambda *_a, **_k: False)
+    monkeypatch.setattr(click, "edit", lambda msg: msg)
+
+    callback = git_commands.commit.callback
+    assert callback is not None
+    callback("model", stage_all=True, paths=())
+
+    status = porcelain.status(repo.path)  # type: ignore[no-untyped-call]
+    assert status.unstaged == []

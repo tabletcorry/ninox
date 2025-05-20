@@ -21,9 +21,29 @@ def git() -> None:
 @click.option(
     "--model", default="gpt-4.1-mini", show_default=True, help="OpenAI model to use"
 )
-def commit(model: str) -> None:
+@click.option(
+    "-a",
+    "--all",
+    "stage_all",
+    is_flag=True,
+    help="Automatically stage tracked changes before committing.",
+)
+@click.argument("paths", nargs=-1, type=click.Path())
+def commit(model: str, stage_all: bool, paths: tuple[str, ...]) -> None:
     """Generate a commit message with an LLM and commit staged changes."""
     repo = Repo(str(Path.cwd()))
+
+    if stage_all and paths:
+        raise click.UsageError("Cannot use -a with path arguments")
+
+    if stage_all:
+        tracked = [p.decode() for p in repo.open_index().paths()]  # type: ignore[no-untyped-call]
+        if tracked:
+            repo.stage(tracked)
+
+    if paths:
+        repo.stage(paths)
+
     index_tree = porcelain.write_tree(repo)  # type: ignore[no-untyped-call]
     try:
         head_tree = repo[b"HEAD"].tree
