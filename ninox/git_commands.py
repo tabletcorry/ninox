@@ -9,7 +9,7 @@ from dulwich import porcelain
 from dulwich.repo import Repo
 from openai import OpenAI
 
-from .image_description import load_config
+from .config import load_config
 
 
 @click.group()
