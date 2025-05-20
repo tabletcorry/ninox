@@ -5,6 +5,7 @@ Create pytest unit tests for all new code.
 ## Dev Environment Tips
 - The environment is managed with `uv`
 - Run scripts and tools by calling `uv run ...`
+- Python can be called with `uv run python`
 - Use `# noqa` and `# type: ignore` rarely.
 
 ## Testing Instructions
