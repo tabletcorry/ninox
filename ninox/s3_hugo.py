@@ -29,7 +29,7 @@ SHIPS = {
 MD5_PREFIX = re.compile(r"^[0-9a-f]{32}[-_]")
 
 # Default name for ship description configuration files
-DEFAULT_CONFIG = Path("config.toml")
+DEFAULT_CONFIG = Path("ninox_config.toml")
 
 
 class ShipConfig(BaseModel):
@@ -72,7 +72,7 @@ def ensure_section(path: Path, title: str, description: str | None = None) -> No
             "hiddenInHomeList: true",
         ]
         if description:
-            lines.append(f"description: {description}")
+            lines.extend(["description: >-", f"  {description}"])
         lines.append("---")
         index.write_text("\n".join(lines) + "\n")
 
@@ -119,7 +119,7 @@ def write_year_page(  # noqa: PLR0913
         "hiddenInHomeList: true",
     ]
     if description:
-        lines.append(f"description: {description} - {year}")
+        lines.extend(["description: >-", f"  {description} from {year}"])
     lines.extend(["---", ""])
 
     month_map: dict[int, dict[dt.date, list[str]]] = defaultdict(dict)
