@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+import tomllib
 from collections import defaultdict
 from pathlib import Path
 
 import boto3
 import click
+from pydantic import BaseModel
 
 MIN_PARTS = 4
 
@@ -26,6 +28,25 @@ SHIPS = {
 
 MD5_PREFIX = re.compile(r"^[0-9a-f]{32}[-_]")
 
+# Default name for ship description configuration files
+DEFAULT_CONFIG = Path("config.toml")
+
+
+class ShipConfig(BaseModel):
+    """Configuration data loaded from TOML."""
+
+    ships: dict[str, str] = {}
+
+
+def load_ship_config(config_path: Path | str) -> ShipConfig:
+    """Load ship descriptions from a TOML file."""
+    path = Path(config_path).expanduser()
+    if not path.is_file():
+        raise FileNotFoundError(f"Config file not found: {path}")
+    with path.open("rb") as f:
+        data = tomllib.load(f)
+    return ShipConfig(**data)
+
 
 def strip_md5_prefix(name: str) -> str:
     """Remove an MD5 prefix from ``name`` if present."""
@@ -37,20 +58,23 @@ def slug(name: str) -> str:
     return name.lower().replace(" ", "_")
 
 
-def ensure_section(path: Path, title: str) -> None:
+def ensure_section(path: Path, title: str, description: str | None = None) -> None:
     """Ensure a Hugo section exists with an ``_index.md``."""
     path.mkdir(parents=True, exist_ok=True)
     index = path / "_index.md"
     if not index.exists():
-        index.write_text(
-            "---\n"
-            f"title: {title}\n"
-            "ShowReadingTime: false\n"
-            "hideMeta: true\n"
-            "hideSummary: true\n"
-            "hiddenInHomeList: true\n"
-            "---\n"
-        )
+        lines = [
+            "---",
+            f"title: {title}",
+            "ShowReadingTime: false",
+            "hideMeta: true",
+            "hideSummary: true",
+            "hiddenInHomeList: true",
+        ]
+        if description:
+            lines.append(f"description: {description}")
+        lines.append("---")
+        index.write_text("\n".join(lines) + "\n")
 
 
 def group_objects(bucket: str, prefix: str) -> dict[tuple[str, dt.date], list[str]]:
@@ -72,8 +96,14 @@ def group_objects(bucket: str, prefix: str) -> dict[tuple[str, dt.date], list[st
     return groups
 
 
-def write_year_page(
-    base: Path, ship_code: str, year: int, days: dict[dt.date, list[str]], cdn_host: str
+def write_year_page(  # noqa: PLR0913
+    base: Path,
+    ship_code: str,
+    year: int,
+    days: dict[dt.date, list[str]],
+    cdn_host: str,
+    *,
+    description: str | None = None,
 ) -> None:
     """Write an ``index.md`` listing all menus for ``year`` grouped by month."""
     ship_slug = slug(SHIPS[ship_code])
@@ -87,9 +117,10 @@ def write_year_page(
         "hideMeta: true",
         "hideSummary: true",
         "hiddenInHomeList: true",
-        "---",
-        "",
     ]
+    if description:
+        lines.append(f"description: {description} - {year}")
+    lines.extend(["---", ""])
 
     month_map: dict[int, dict[dt.date, list[str]]] = defaultdict(dict)
     for date, keys in days.items():
@@ -110,8 +141,17 @@ def write_year_page(
     (year_dir / "index.md").write_text("\n".join(lines))
 
 
-def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
+def create_tree(
+    bucket: str,
+    prefix: str,
+    output: Path,
+    cdn_host: str,
+    config_path: Path | None = None,
+) -> None:
     groups = group_objects(bucket, prefix)
+    descriptions: dict[str, str] = {}
+    if config_path:
+        descriptions = load_ship_config(config_path).ships
 
     # Ensure section structure
     root = output / "hal_menus"
@@ -119,7 +159,7 @@ def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
     for code in {code for code, _ in groups}:
         ship_name = SHIPS[code]
         ship_dir = root / slug(ship_name)
-        ensure_section(ship_dir, ship_name)
+        ensure_section(ship_dir, ship_name, descriptions.get(code))
 
     year_groups: dict[tuple[str, int], dict[dt.date, list[str]]] = defaultdict(
         lambda: defaultdict(list)
@@ -128,7 +168,9 @@ def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
         year_groups[code, date.year][date].extend(sorted(keys))
 
     for (code, year), days in year_groups.items():
-        write_year_page(output, code, year, days, cdn_host)
+        write_year_page(
+            output, code, year, days, cdn_host, description=descriptions.get(code)
+        )
 
 
 @click.command()
@@ -142,9 +184,22 @@ def create_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
     help="Destination content directory",
 )
 @click.option("--cdn-host", required=True, help="Base URL for S3 objects")
-def generate_menu_tree(bucket: str, prefix: str, output: Path, cdn_host: str) -> None:
+@click.option("--config", type=Path, help="TOML config file with ship descriptions")
+def generate_menu_tree(
+    bucket: str, prefix: str, output: Path, cdn_host: str, config: Path | None = None
+) -> None:
     """Generate a Hugo content tree from menu PDFs stored in S3."""
-    create_tree(bucket, prefix, output, cdn_host)
+    if config is None:
+        candidate = Path.cwd() / DEFAULT_CONFIG
+        if candidate.is_file():
+            config = candidate
+        elif not click.confirm(
+            "No config.toml file found. Continue without ship descriptions?",
+            default=True,
+        ):
+            raise click.Abort
+
+    create_tree(bucket, prefix, output, cdn_host, config)
 
 
 if __name__ == "__main__":
