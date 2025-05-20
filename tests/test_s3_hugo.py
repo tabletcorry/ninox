@@ -3,6 +3,7 @@ import datetime as dt
 from collections.abc import Iterable
 from pathlib import Path
 
+import click
 import pytest
 
 from ninox import s3_hugo
@@ -40,6 +41,19 @@ def test_ensure_section(tmp_path: Path) -> None:
         "hideMeta: true\n"
         "hideSummary: true\n"
         "hiddenInHomeList: true\n"
+        "---\n"
+    )
+
+    section2 = tmp_path / "bar"
+    s3_hugo.ensure_section(section2, "Bar", "A ship")
+    assert (section2 / "_index.md").read_text() == (
+        "---\n"
+        "title: Bar\n"
+        "ShowReadingTime: false\n"
+        "hideMeta: true\n"
+        "hideSummary: true\n"
+        "hiddenInHomeList: true\n"
+        "description: A ship\n"
         "---\n"
     )
 
@@ -111,6 +125,18 @@ def test_write_year_page(tmp_path: Path) -> None:
     assert not (year_dir / "_index.md").exists()
 
 
+def test_write_year_page_with_description(tmp_path: Path) -> None:
+    prefix = "a" * 32
+    d = dt.date(2025, 3, 17)
+    key = f"content/ko/menu/abc/{prefix}-file.pdf"
+    s3_hugo.write_year_page(
+        tmp_path, "ko", 2025, {d: [key]}, "https://cdn", description="A ship"
+    )
+    year_dir = tmp_path / "hal_menus" / "koningsdam" / "2025"
+    content = (year_dir / "index.md").read_text()
+    assert "description: A ship - 2025" in content
+
+
 def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     prefix = "a" * 32
     groups = {
@@ -145,3 +171,82 @@ def test_create_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     content = year_page.read_text()
     assert '{{< details title="March" >}}' in content
     assert "file.pdf" in content
+
+
+def test_create_tree_with_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    prefix = "a" * 32
+    groups = {("ko", dt.date(2025, 3, 17)): [f"content/ko/menu/abc/{prefix}-file.pdf"]}
+
+    monkeypatch.setattr(s3_hugo, "group_objects", lambda _bucket, _prefix: groups)
+
+    config = tmp_path / "config.toml"
+    config.write_text("""[ships]\nko = 'The best'\n""")
+
+    s3_hugo.create_tree("my-bucket", "content/", tmp_path, "https://cdn", config)
+
+    ship_dir = tmp_path / "hal_menus" / "koningsdam"
+    ship_content = (ship_dir / "_index.md").read_text()
+    assert "description: The best" in ship_content
+    year_page = ship_dir / "2025" / "index.md"
+    assert "description: The best - 2025" in year_page.read_text()
+
+
+def test_generate_menu_tree_autoload_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = tmp_path / "config.toml"
+    config.write_text("""[ships]\nko = 'Desc'\n""")
+    monkeypatch.chdir(tmp_path)
+
+    captured: dict[str, Path | None] = {}
+
+    def fake_create_tree(
+        _bucket: str,
+        _prefix: str,
+        _output: Path,
+        _cdn_host: str,
+        config_path: Path | None,
+    ) -> None:
+        captured["config"] = config_path
+
+    monkeypatch.setattr(s3_hugo, "create_tree", fake_create_tree)
+    callback = s3_hugo.generate_menu_tree.callback
+    assert callback is not None
+    callback("b", "content/", tmp_path, "https://cdn", None)
+    assert captured["config"] == config
+
+
+def test_generate_menu_tree_prompt_abort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(s3_hugo.click, "confirm", lambda *_a, **_k: False)  # type: ignore[attr-defined]
+    callback = s3_hugo.generate_menu_tree.callback
+    assert callback is not None
+    with pytest.raises(click.Abort):
+        callback("b", "content/", tmp_path, "https://cdn", None)
+
+
+def test_generate_menu_tree_prompt_continue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(s3_hugo.click, "confirm", lambda *_a, **_k: True)  # type: ignore[attr-defined]
+    captured: dict[str, Path | None] = {}
+
+    def fake_create_tree(
+        _bucket: str,
+        _prefix: str,
+        _output: Path,
+        _cdn_host: str,
+        config_path: Path | None,
+    ) -> None:
+        captured["config"] = config_path
+
+    monkeypatch.setattr(s3_hugo, "create_tree", fake_create_tree)
+    callback = s3_hugo.generate_menu_tree.callback
+    assert callback is not None
+    callback("b", "content/", tmp_path, "https://cdn", None)
+    assert captured["config"] is None
