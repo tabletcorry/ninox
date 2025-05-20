@@ -5,6 +5,7 @@ Ninox is intended to be a catch-all tool for various LLM scripts I make.
 Currently has the following:
 * `describe-images`: generates alt text for images using OpenAI's Responses API.
 * `generate-menu-tree`: mirrors menu PDFs from S3 into a Hugo content tree.
+* `git commit`: suggests a commit message for staged changes.
 
 ## Requirements
 
@@ -51,3 +52,13 @@ ninox generate-menu-tree --bucket my-bucket --cdn-host https://cdn.example.com
 
 The command creates `content/hal_menus/...` directories with daily `index.md` files linking to the PDFs via the provided CDN host.
 Any leading 32-character MD5 hashes in the filenames are stripped from the link display names.
+
+### git commit
+
+Generate a commit message for staged changes:
+
+```bash
+ninox git commit
+```
+
+Pass `--model` to choose an alternate OpenAI model.
