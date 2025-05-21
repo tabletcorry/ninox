@@ -61,4 +61,7 @@ Generate a commit message for staged changes:
 ninox git commit
 ```
 
+The suggested message opens in your `$EDITOR` for tweaks.
+
 Pass `--model` to choose an alternate OpenAI model.
+Use `--dry-run` to print the suggestion without committing.

@@ -28,8 +28,15 @@ def git() -> None:
     is_flag=True,
     help="Automatically stage tracked changes before committing.",
 )
+@click.option(
+    "-n",
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    help="Only print the suggested commit message and do not commit.",
+)
 @click.argument("paths", nargs=-1, type=click.Path())
-def commit(model: str, stage_all: bool, paths: tuple[str, ...]) -> None:
+def commit(model: str, stage_all: bool, dry_run: bool, paths: tuple[str, ...]) -> None:
     """Generate a commit message with an LLM and commit staged changes."""
     repo = Repo(str(Path.cwd()))
 
@@ -91,10 +98,12 @@ Return only the formatted commit message—no code fences, no extra prose.""",
     message = cast("str", response.choices[0].message.content).strip()
 
     click.echo(f"Suggested commit message:\n{message}")
-    if click.confirm("Edit commit message?", default=False):
-        edited = click.edit(message)
-        if edited is not None:
-            message = edited.strip()
+    if dry_run:
+        return
+
+    edited = click.edit(message)
+    if edited is not None:
+        message = edited.strip()
 
     porcelain.commit(repo.path, message=message)  # type: ignore[no-untyped-call]
     click.echo("Commit created.")
