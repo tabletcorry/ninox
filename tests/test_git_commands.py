@@ -1,11 +1,15 @@
 # ruff: noqa: S101
 import io
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import click
 import pytest
 from dulwich import porcelain
 from dulwich.repo import Repo
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 from ninox import git_commands
 
@@ -65,12 +69,13 @@ def test_commit_creates_commit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.setattr(
         git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Update file")
     )
-    monkeypatch.setattr(git_commands, "load_config", lambda _path: make_config())
     monkeypatch.setattr(click, "edit", lambda msg: msg)
 
     callback = git_commands.commit.callback
     assert callback is not None
-    callback("model", stage_all=False, dry_run=False, paths=())
+    wrapped = cast("Callable[..., None]", getattr(callback, "__wrapped__", None))
+    assert wrapped is not None
+    wrapped(make_config(), "model", stage_all=False, dry_run=False, paths=())
 
     repo = Repo(str(tmp_path))
     last = repo[repo.head()]
@@ -91,12 +96,13 @@ def test_commit_only_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(
         git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Msg")
     )
-    monkeypatch.setattr(git_commands, "load_config", lambda _p: make_config())
     monkeypatch.setattr(click, "edit", lambda msg: msg)
 
     callback = git_commands.commit.callback
     assert callback is not None
-    callback("model", stage_all=False, dry_run=False, paths=("a.txt",))
+    wrapped = cast("Callable[..., None]", getattr(callback, "__wrapped__", None))
+    assert wrapped is not None
+    wrapped(make_config(), "model", stage_all=False, dry_run=False, paths=("a.txt",))
 
     repo = Repo(str(tmp_path))
     head = repo.head()
@@ -121,12 +127,13 @@ def test_commit_all_option(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(
         git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Msg")
     )
-    monkeypatch.setattr(git_commands, "load_config", lambda _p: make_config())
     monkeypatch.setattr(click, "edit", lambda msg: msg)
 
     callback = git_commands.commit.callback
     assert callback is not None
-    callback("model", stage_all=True, dry_run=False, paths=())
+    wrapped = cast("Callable[..., None]", getattr(callback, "__wrapped__", None))
+    assert wrapped is not None
+    wrapped(make_config(), "model", stage_all=True, dry_run=False, paths=())
 
     status = porcelain.status(repo.path)  # type: ignore[no-untyped-call]
     assert status.unstaged == []
@@ -145,7 +152,6 @@ def test_commit_dry_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(
         git_commands, "OpenAI", lambda *_, **__: FakeClient(message="Msg")
     )
-    monkeypatch.setattr(git_commands, "load_config", lambda _p: make_config())
 
     def fail_edit(_msg: str) -> str:
         raise AssertionError("edit should not be called")
@@ -154,7 +160,9 @@ def test_commit_dry_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
 
     callback = git_commands.commit.callback
     assert callback is not None
-    callback("model", stage_all=False, dry_run=True, paths=())
+    wrapped = cast("Callable[..., None]", getattr(callback, "__wrapped__", None))
+    assert wrapped is not None
+    wrapped(make_config(), "model", stage_all=False, dry_run=True, paths=())
 
     repo = Repo(str(tmp_path))
     assert len(list(repo.get_walker())) == 1

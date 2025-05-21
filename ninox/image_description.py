@@ -5,6 +5,7 @@ import json
 import mimetypes
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 from openai import OpenAI
@@ -12,7 +13,8 @@ from openai.types.responses import ResponseInputImageParam, ResponseInputTextPar
 from openai.types.responses.response_input_param import Message
 from PIL import Image
 
-from .config import load_config
+if TYPE_CHECKING:
+    from .config import Config
 
 
 def get_image_description(
@@ -124,7 +126,10 @@ def process_directory(client: OpenAI, directory: Path, context: str) -> None:
 @click.command()
 @click.argument("directory", type=Path)
 @click.option("--context", "-c", help="Context for this batch of images")
-def describe_images(directory: Path, context: str | None = None) -> None:
+@click.pass_obj
+def describe_images(
+    config: Config, directory: Path, context: str | None = None
+) -> None:
     if not directory.is_dir():
         print(f"{directory} is not a directory")
         return
@@ -137,8 +142,7 @@ def describe_images(directory: Path, context: str | None = None) -> None:
             print("No context provided; exiting.")
             return
 
-    # Load configuration and initialize OpenAI client
-    config = load_config("~/.config/ninox/config.toml")
+    # Initialize OpenAI client using passed configuration
     api_key = config.tokens.openai.open
     client = OpenAI(api_key=api_key)
 

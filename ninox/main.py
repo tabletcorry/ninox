@@ -1,11 +1,14 @@
 import click
 
 from ninox import git_commands, image_description, s3_hugo
+from ninox.config import load_config
 
 
 @click.group()
-def cli() -> None:
-    pass
+@click.pass_context
+def cli(ctx: click.Context) -> None:
+    """Base command group that loads configuration."""
+    ctx.obj = load_config("~/.config/ninox/config.toml")
 
 
 cli.add_command(image_description.describe_images)
