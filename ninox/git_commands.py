@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import click
 from dulwich import porcelain
 from dulwich.repo import Repo
 from openai import OpenAI
 
-from .config import load_config
+if TYPE_CHECKING:
+    from .config import Config
 
 
 @click.group()
@@ -36,7 +37,10 @@ def git() -> None:
     help="Only print the suggested commit message and do not commit.",
 )
 @click.argument("paths", nargs=-1, type=click.Path())
-def commit(model: str, stage_all: bool, dry_run: bool, paths: tuple[str, ...]) -> None:
+@click.pass_obj
+def commit(
+    config: Config, model: str, stage_all: bool, dry_run: bool, paths: tuple[str, ...]
+) -> None:
     """Generate a commit message with an LLM and commit staged changes."""
     repo = Repo(str(Path.cwd()))
 
@@ -63,7 +67,6 @@ def commit(model: str, stage_all: bool, dry_run: bool, paths: tuple[str, ...]) -
         click.echo("No staged changes to commit.")
         raise click.Abort
 
-    config = load_config("~/.config/ninox/config.toml")
     client = OpenAI(api_key=config.tokens.openai.open)
     response = client.chat.completions.create(
         model=model,
