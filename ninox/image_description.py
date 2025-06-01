@@ -43,7 +43,8 @@ def get_image_description(
     # Build the prompt and embed the image
     prompt = (
         f"Context: {context}\n\n"
-        "Describe the image given the context. "
+        f"Filename: {image_path.name}\n\n"
+        "Describe the image given the context and filename."
         "Description should be concise and appropriate for image alt text."
     )
 
